@@ -1,10 +1,8 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace CleanupAdvisor
 {
@@ -19,7 +17,7 @@ namespace CleanupAdvisor
         /// Key: Full path of the directory
         /// Value: Size of the directory in bytes
         /// </summary>
-        private static ConcurrentDictionary<string, long> directorySizes;
+        private static Dictionary<string, long> directorySizes;
 
         private static readonly string[] SizeSuffixes = 
                    { "bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB" };
@@ -31,9 +29,9 @@ namespace CleanupAdvisor
         static void Main(string[] args)
         {
             const int MAX_LINES_WRITTEN_BEFORE_PAUSE = 25;
-            directorySizes = new ConcurrentDictionary<string, long>();
+            directorySizes = new Dictionary<string, long>();
             long totalSize = DirSize(new DirectoryInfo(@"C:\"));
-            var sorted = directorySizes.OrderByDescending(x => x.Value);
+            var sorted = directorySizes.AsEnumerable().OrderByDescending(x => x.Value);
             int linesWritten = 0;
             foreach (KeyValuePair<string, long> kvp in sorted)
             {
@@ -100,23 +98,20 @@ namespace CleanupAdvisor
             }
             // Add subdirectory sizes.
             DirectoryInfo[] dis = d.GetDirectories();
-            Parallel.ForEach(dis, di =>
+            
+            foreach(DirectoryInfo di in dis)
             {
                 if ((isSystem && !isRoot && !containsNonSystem) || isWindows)
                 {
-                    return;
+                    continue;
                 }
-                int attempts = 0;
-                bool success = false;
-                Interlocked.Add(ref size, DirSize(di));
+                size += DirSize(di);
                 if (size >= 0)
                 {
-                    do
-                    {
-                        success = directorySizes.TryAdd(di.FullName, size);
-                    } while(attempts < 5 && !success);
+                    directorySizes.Add(di.FullName, size);
                 }
-            });
+            }
+            
             return size;  
         }
     }
