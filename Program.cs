@@ -115,14 +115,20 @@ namespace CleanupAdvisor
             {
                 return 0;
             }
-            // Add file sizes.
-            size += dir.Files.Sum(file => file.Length);
 
-            // Add subdirectory sizes.
-            size += dir.Directories.Sum(directory => DirSize(directory));
-            
-            directorySizes.Add(d.FullName, size);
+            if ((!dir.IsSystem || dir.ContainsNonSystem) && !dir.IsWindows)
+            {
+                // Add file sizes.
+                size += dir.Files.Sum(file => file.Length);
 
+                // Add subdirectory sizes.
+                size += dir.Directories.Sum(directory => DirSize(directory));
+            }
+
+            if(!dir.IsWindows && !dir.IsRoot)
+            {
+                directorySizes.Add(d.FullName, size);
+            }
             return size;  
         }
     }
