@@ -105,10 +105,11 @@ namespace CleanupAdvisor
                 {
                     continue;
                 }
-                size += DirSize(di);
+                long currentDirectorySize = DirSize(di);
+                size += currentDirectorySize;
                 if (size >= 0)
                 {
-                    directorySizes.Add(di.FullName, size);
+                    directorySizes.Add(di.FullName, currentDirectorySize);
                 }
             }
             
