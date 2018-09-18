@@ -75,44 +75,54 @@ namespace CleanupAdvisor
                 SizeSuffixes[mag]);
         }
 
-        private static long DirSize(DirectoryInfo d) 
+        private static DirectoryModel UnpackDirectory(DirectoryInfo d)
         {
-            long size = 0;
             FileInfo[] fis;
+            DirectoryInfo[] dis;
             bool isSystem = (d.Attributes | FileAttributes.System) == d.Attributes;
             bool isRoot = d.FullName == root;
             try
             {
                 fis = d.GetFiles();
+                dis = d.GetDirectories();
             }
             catch
             {
-                return -1;
+                return null;
             }
-            bool containsNonSystem = fis.Any(x => (x.Attributes | FileAttributes.System) != x.Attributes);
+
+            bool containsNonSystem = 
+                fis.Any(x => (x.Attributes | FileAttributes.System) != x.Attributes) ||
+                dis.Any(x => (x.Attributes | FileAttributes.System) != x.Attributes);
             bool isWindows = d.FullName == windows;
-            // Add file sizes.
-            foreach (FileInfo fi in fis) 
-            {      
-                size += fi.Length;
-            }
-            // Add subdirectory sizes.
-            DirectoryInfo[] dis = d.GetDirectories();
-            
-            foreach(DirectoryInfo di in dis)
+
+            return new DirectoryModel
+            { 
+                Files = fis,
+                Directories = dis,
+                IsSystem = isSystem,
+                IsWindows = isWindows,
+                ContainsNonSystem = containsNonSystem,
+                IsRoot = isRoot
+            };
+        }
+
+        private static long DirSize(DirectoryInfo d) 
+        {
+            long size = 0;
+            DirectoryModel dir = UnpackDirectory(d);
+            if (dir == null)
             {
-                if ((isSystem && !isRoot && !containsNonSystem) || isWindows)
-                {
-                    continue;
-                }
-                long currentDirectorySize = DirSize(di);
-                size += currentDirectorySize;
-                if (size >= 0)
-                {
-                    directorySizes.Add(di.FullName, currentDirectorySize);
-                }
+                return 0;
             }
+            // Add file sizes.
+            size += dir.Files.Sum(file => file.Length);
+
+            // Add subdirectory sizes.
+            size += dir.Directories.Sum(directory => DirSize(directory));
             
+            directorySizes.Add(d.FullName, size);
+
             return size;  
         }
     }
